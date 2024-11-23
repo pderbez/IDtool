@@ -3,7 +3,7 @@
 
 
 from gurobipy import *
-from MidoriModel_Gurobi_Todo import Midori_diff
+from MidoriModel_Validator import Midori_diff
 from draw_Midori import draw
 
 pi = [0, 10, 5, 15, 14, 4, 11, 1, 9, 3, 12, 6, 7, 13, 2, 8]
