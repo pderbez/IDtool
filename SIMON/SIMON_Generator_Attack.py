@@ -176,6 +176,46 @@ def my_callback(model, where):
 def newState(M,n) :
     return [M.addVar(vtype='b') for _ in range(n)]
 
+def Combine(M,VX, VY, S, a,b ) :
+    n = len(VX)
+    Sa = Rotate(S,a)
+    Sb = Rotate(S,b)
+
+    WX = newState(M,n)
+    WY = newState(M,n)
+    for i in range(n): 
+  
+
+
+        M.addConstr(1-Sa[i] + WX[i] >= VX[i])
+        M.addConstr(1-Sa[i] + VX[i] >= WX[i])
+
+        M.addConstr(1-Sb[i] + WX[i] >= VX[i])
+        M.addConstr(1-Sb[i] + VX[i] >= WX[i])
+
+
+        M.addConstr(1-Sb[i] + WY[i] >= VY[i])
+        M.addConstr(1-Sb[i] + VY[i] >= WY[i])
+
+        M.addConstr(1-Sa[i] + WY[i] >= VY[i])
+        M.addConstr(1-Sa[i] + VY[i] >= WY[i])
+
+        # M.addConstr(1-Sb[i] + VY[i] >= WY[i])
+        # M.addConstr(1-Sb[i] + WY[i] >= VY[i])
+
+        M.addConstr(Sa[i]+Sb[i] + 1-VX[i]+1-VY[i]+ WX[i] +WY[i]>=1)
+        M.addConstr(Sa[i]+Sb[i] + VX[i]+ 1-VY[i] +WY[i]>=1)
+        M.addConstr(Sa[i]+Sb[i] + VY[i]+ 1-VX[i] +WX[i]>=1)
+        M.addConstr(Sa[i]+Sb[i] + VX[i]+ VY[i] + 1-WX[i]>=1)
+        M.addConstr(Sa[i]+Sb[i] + VX[i]+ VY[i] + 1-WY[i]>=1)
+
+
+    K = XORState(M,Rotate(WX,-a), Rotate(WY,-b))
+
+    M._store.append([WX,WY])
+
+    return K
+
 
 def find_impossible_differential(rB,rD,rF, n):
     M = gp.Model()
@@ -188,6 +228,8 @@ def find_impossible_differential(rB,rD,rF, n):
 
     M._solCount = 0
     M._valid = 0
+
+    M._store=[]
 
     Lf = newState(M,n)
     Lb = newState(M,n)
@@ -216,7 +258,9 @@ def find_impossible_differential(rB,rD,rF, n):
     for r in range(rB) : 
         ValueNeededInX = CmpState(M,Rotate(M._is_zero_forward[r][0],8), Rotate(M._is_zero_forward[r][0],1), M._value_needed_backward[r][2]  )
         ValueNeededInY = CmpState(M,Rotate(M._is_zero_forward[r][0],1), Rotate(M._is_zero_forward[r][0],8),  M._value_needed_backward[r][2] )
-        M._key_recovery_forward.append(XORState(M, Rotate(ValueNeededInX,-8), Rotate(ValueNeededInY,-1)))
+
+        M._key_recovery_forward.append(Combine(M, ValueNeededInX, ValueNeededInY, M._is_zero_forward[r][0], 8,1))
+        #M._key_recovery_forward.append(XORState(M, Rotate(ValueNeededInX,-8), Rotate(ValueNeededInY,-1)))
    
         XORStateList(M, [M._value_needed_backward[r+1][1] , Rotate(M._value_needed_backward[r][2],-2),  M._key_recovery_forward[-1]] , M._value_needed_backward[r][0])
        
@@ -224,12 +268,12 @@ def find_impossible_differential(rB,rD,rF, n):
     M.addConstrs(M._value_needed_backward[rB][0][i] == 0 for i in range(n))
     M.addConstrs(M._value_needed_backward[rB][1][i] == 0 for i in range(n))
 
-    # M.addConstrs(M._is_zero_forward[rB][0][i] == 0 for i in range(n))
-    # for i in range(n) :
-    #     if i in  [6] : #[1,3,10] :
-    #         M.addConstr(M._is_zero_forward[rB][1][i]==1)
-    #     else :
-    #         M.addConstr(M._is_zero_forward[rB][1][i]==0)
+    M.addConstrs(M._is_zero_forward[rB][0][i] == 0 for i in range(n))
+    for i in range(n) :
+        if i in  [6] : #[1,3,10] :
+            M.addConstr(M._is_zero_forward[rB][1][i]==1)
+        else :
+            M.addConstr(M._is_zero_forward[rB][1][i]==0)
 
 
     # Distinguisher
@@ -272,8 +316,9 @@ def find_impossible_differential(rB,rD,rF, n):
     for r in range(rF) : 
         ValueNeededInX = CmpState(M,Rotate(M._is_zero_backward[rD+r+1][1],8), Rotate(M._is_zero_backward[rD+r+1][1],1), M._value_needed_forward[r][2]  )
         ValueNeededInY = CmpState(M,Rotate(M._is_zero_backward[rD+r+1][1],1), Rotate(M._is_zero_backward[rD+r+1][1],8),  M._value_needed_forward[r][2] )
-        M._key_recovery_backward.append(XORState(M, Rotate(ValueNeededInX,-8), Rotate(ValueNeededInY,-1)))
-
+        #M._key_recovery_backward.append(XORState(M, Rotate(ValueNeededInX,-8), Rotate(ValueNeededInY,-1)))
+        M._key_recovery_backward.append(Combine(M, ValueNeededInX, ValueNeededInY, M._is_zero_backward[rD+r+1][1], 8,1))
+   
         XORStateList(M, [M._value_needed_forward[r][0] , Rotate(M._value_needed_forward[r][2],-2),  M._key_recovery_backward[-1]] , M._value_needed_forward[r+1][1])
        
 
@@ -282,12 +327,12 @@ def find_impossible_differential(rB,rD,rF, n):
     M.addConstrs(M._value_needed_forward[0][1][i] == 0 for i in range(n))
 
 
-    # M.addConstrs(M._summary[-1][1][i] == 0 for i in range(n))
-    # for i in range(n) :
-    #     if i in [1] :
-    #         M.addConstr(M._summary[-1][0][i]==1)
-    #     else :
-    #         M.addConstr(M._summary[-1][0][i]==0)
+    M.addConstrs(M._summary[-1][1][i] == 0 for i in range(n))
+    for i in range(n) :
+        if i in [15] :
+            M.addConstr(M._summary[-1][0][i]==1)
+        else :
+            M.addConstr(M._summary[-1][0][i]==0)
 
    
     # Mode 1 : maximize number of zeros 
