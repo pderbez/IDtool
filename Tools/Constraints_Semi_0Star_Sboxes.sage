@@ -64,7 +64,7 @@ def printVectorSpaceasString(V, m):
                 
 def getModel(S, name):
     print(f"=============== {name} ==================")
-    m = S.m
+    m = S.input_size()
     A = getVectorSpaceDDT(S, m)
    
     f = open("S_"+name+"_Semi_Min_Diff.esp", 'w')

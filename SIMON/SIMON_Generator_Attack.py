@@ -2,6 +2,7 @@ import gurobipy as gp
 import SIMON_Validator 
 from draw_SIMON import draw
 
+gp.setParam("LogToConsole", 0)
 
 def getSummaryBit(M, a, b):
     # 0+0 =0 , *+0 = 0 , *+* = *
@@ -137,16 +138,16 @@ def my_callback(model, where):
             target_i, target_o, rD-1, n)
      
         if s == gp.GRB.INFEASIBLE:
-            nb_one = sum(target_i[0])+sum(target_i[1])+sum(target_o[0])+sum(target_o[1])
-            print(f"Found an impossible differential provoked by {
-                  round(sum(model.cbGetSolution(model._NewZeros)))} zeros. It has {nb_one} active bits")
-            print("ID:", "".join([str(x) for x in target_i[0]]) + " "+"".join([str(x) for x in target_i[1]]),
-                  " -/->  "+"".join([str(x) for x in target_o[0]]) + " " + "".join([str(x) for x in target_o[1]]))
+            # nb_one = sum(target_i[0])+sum(target_i[1])+sum(target_o[0])+sum(target_o[1])
+            # print(f"Found an impossible differential provoked by {
+            #       round(sum(model.cbGetSolution(model._NewZeros)))} zeros. It has {nb_one} active bits")
+            # print("ID:", "".join([str(x) for x in target_i[0]]) + " "+"".join([str(x) for x in target_i[1]]),
+            #       " -/->  "+"".join([str(x) for x in target_o[0]]) + " " + "".join([str(x) for x in target_o[1]]))
 
-            draw(model, "SIMON")
+            draw(model, "SIMON", model.cbGet(gp.GRB.Callback.MIPSOL_OBJ))
 
             model._valid += 1
-            print(model.cbGet(gp.GRB.Callback.RUNTIME) )
+            # print(model.cbGet(gp.GRB.Callback.RUNTIME))
 
         else:
             if model._solCount %50 ==0 :
@@ -216,8 +217,17 @@ def Combine(M,VX, VY, S, a,b ) :
 
     return K
 
+def Cancel(M, A,B, C, out) :
+    
+    for i in range(len(out)) :
+        # if A = B= 1 and C=0 then out =1
+        M.addConstr(1-A[i]+1-B[i]+C[i] + out[i]>=1)
 
-def find_impossible_differential(rB,rD,rF, n):
+        # if C=1 then out = 0
+        M.addConstr(1-C[i]>=out[i])
+
+
+def find_impossible_differential(rB,rD,rF, n, keysize):
     M = gp.Model()
     M.setParam("LazyConstraints", 1)
 
@@ -242,6 +252,9 @@ def find_impossible_differential(rB,rD,rF, n):
     M._key_recovery_forward = []
     M._key_recovery_backward = []
 
+    M._XORCancellation_B = [ newState(M,n) for _ in range(rB)]
+    M._XORCancellation_F =[ newState(M,n) for _ in range(rF)]
+
     # Key recovery (backward propagation)
     for r in range(rB):
         XORState(M, M._is_zero_forward[r+1][0],
@@ -263,17 +276,14 @@ def find_impossible_differential(rB,rD,rF, n):
         #M._key_recovery_forward.append(XORState(M, Rotate(ValueNeededInX,-8), Rotate(ValueNeededInY,-1)))
    
         XORStateList(M, [M._value_needed_backward[r+1][1] , Rotate(M._value_needed_backward[r][2],-2),  M._key_recovery_forward[-1]] , M._value_needed_backward[r][0])
-       
+
+        # Cancel(M,ANDState(M,Rotate(M._is_zero_forward[r][0], 8), Rotate(M._is_zero_forward[r][0],1)),  Rotate(M._is_zero_forward[r][0],2), M._is_zero_forward[r][2], M._XORCancellation_B[r][0] )      
+        Cancel(M,M._is_zero_forward[r][1], M._is_zero_forward[r][2], M._is_zero_forward[r+1][0], M._XORCancellation_B[r])
 
     M.addConstrs(M._value_needed_backward[rB][0][i] == 0 for i in range(n))
     M.addConstrs(M._value_needed_backward[rB][1][i] == 0 for i in range(n))
 
-    M.addConstrs(M._is_zero_forward[rB][0][i] == 0 for i in range(n))
-    for i in range(n) :
-        if i in  [6] : #[1,3,10] :
-            M.addConstr(M._is_zero_forward[rB][1][i]==1)
-        else :
-            M.addConstr(M._is_zero_forward[rB][1][i]==0)
+  
 
 
     # Distinguisher
@@ -320,56 +330,134 @@ def find_impossible_differential(rB,rD,rF, n):
         M._key_recovery_backward.append(Combine(M, ValueNeededInX, ValueNeededInY, M._is_zero_backward[rD+r+1][1], 8,1))
    
         XORStateList(M, [M._value_needed_forward[r][0] , Rotate(M._value_needed_forward[r][2],-2),  M._key_recovery_backward[-1]] , M._value_needed_forward[r+1][1])
-       
+
+        Cancel(M,M._is_zero_backward[rD+r][2], M._is_zero_backward[rD+r+1][0], M._is_zero_backward[rD+r][1], M._XORCancellation_F[r])
 
 
     M.addConstrs(M._value_needed_forward[0][0][i] == 0 for i in range(n))
     M.addConstrs(M._value_needed_forward[0][1][i] == 0 for i in range(n))
 
 
-    M.addConstrs(M._summary[-1][1][i] == 0 for i in range(n))
-    for i in range(n) :
-        if i in [15] :
-            M.addConstr(M._summary[-1][0][i]==1)
-        else :
-            M.addConstr(M._summary[-1][0][i]==0)
+
+    # Example of CHNE24 for SIMON-32-64
+    # M.addConstrs(M._is_zero_forward[rB][0][i] == 0 for i in range(n))
+    # for i in range(n) :
+    #     if i in  [1,3,10] : #[6] : 
+    #         M.addConstr(M._is_zero_forward[rB][1][i]==1)
+    #     else :
+    #         M.addConstr(M._is_zero_forward[rB][1][i]==0)
+
+    # M.addConstrs(M._summary[-1][1][i] == 0 for i in range(n))
+    # for i in range(n) :
+    #     if i in [1] :
+    #         M.addConstr(M._summary[-1][0][i]==1)
+    #     else :
+    #         M.addConstr(M._summary[-1][0][i]==0)
 
    
-    # Mode 1 : maximize number of zeros 
-    
-    # M.setObjective(-gp.quicksum(M._NewZeros))
-
-    # Mode 2 : Maximize number of active bits  (with heuristics Number of zeros >=3)
     M.addConstr(gp.quicksum(M._NewZeros) >= 3)
-    # M.setObjective(-(gp.quicksum(M._is_zero_forward[0][0]) + gp.quicksum(M._is_zero_forward[0][1]) +
-                #    gp.quicksum(M._is_zero_backward[-1][0]) +  gp.quicksum(M._is_zero_backward[-1][1])))
 
 
-    # M.addConstr(M._summary[0][0][0] + M._summary[0][1][0]>=1)
+    # Complexity estimation
+    DX = gp.quicksum(M._summary[0][0]+M._summary[0][1])-1
+    DY = gp.quicksum(M._summary[-1][0]+M._summary[-1][1])-1
 
-    M.setObjective(gp.quicksum(gp.quicksum(x) for x in M._key_recovery_forward[1:])+ gp.quicksum(gp.quicksum(x) for x in M._key_recovery_backward[:rF-1]))
+    Din = gp.quicksum(M._is_zero_forward[0][0]+M._is_zero_forward[0][1])-1
+    Dout = gp.quicksum(M._is_zero_backward[-1][0]+M._is_zero_backward[-1][1])-1
+
+    cin = gp.quicksum(gp.quicksum(X) for X in M._XORCancellation_B) - rB
+    cout =  gp.quicksum(gp.quicksum(X) for X in M._XORCancellation_F) -rF
+
+    M.addConstr(Dout>=Din)
+
+
+
+    KinKout = gp.quicksum(gp.quicksum(x) for x in M._key_recovery_forward[1:])+ gp.quicksum(gp.quicksum(x) for x in M._key_recovery_backward[:rF-1])
+
+    # formula = max(cin+cout - 0.5  , |kin u kout| - 0.5, cin + cout - 0.5 +  n + 1 - |Din| - |Dout|, ( n + 1 - 0.5 - DY +  cin )/2)
+    Term1, Term2, Term3, Term4, complexity,  = [M.addVar(vtype=gp.GRB.CONTINUOUS) for _ in range(5)]
+    M.addConstr(Term1 == cin+cout - 0.53 )
+    M.addConstr(Term2 == KinKout - 0.53)
+    M.addConstr(Term3 == cin+cout - 0.53+2*n+1 - Din-Dout )
+    M.addConstr(Term4 == (-0.53+2*n+1-DY +cin)/2)  
+    M.addConstr(complexity >= Term1)
+    M.addConstr(complexity >= Term2)
+    M.addConstr(complexity >= Term3)
+    M.addConstr(complexity >= Term4)
+
+    M.setObjective(complexity)
+
+    # M.addConstr(Term4<= 2*n)
+    # M.addConstr(Term3 <=2*n)
+
+    # M.addConstr(complexity<= keysize)
+  
+
+
+    vCin, vCout, vDX, vDY  = [M.addVar(vtype=gp.GRB.CONTINUOUS) for  _ in range(4)]
+
+    M.addConstr(vCin == cin )
+    M.addConstr(vCout == cout)
+    M.addConstr(vDX == DX)
+    M.addConstr(vDY == DY)
+    M._keysize=keysize
 
     M.optimize(my_callback)
+
+    print(f"cin = {vCin.X}; cout= {vCout.X}, dX = {vDX.X}, DY = {vDY.X}")
+
+    print(f"cin+cout - 0.5  = {Term1.X}, |kin u kout| - 0.5 = {Term2.X}, cin + cout - 0.5 +  n + 1 - |Din| - |Dout|  ={Term3.X}, ( n + 1 - 0.5 - DY +  cin )/2 = {Term4.X}" )
     print(M.objVal)
 
-    print(f"============= {rD} rounds == SIMON-{2*n} ==  Explored {
+    print(f"============= {(rB,rD,rF)} rounds == SIMON-{2*n}-{keysize} ==  Explored {
           M._solCount} solutions and found {M._valid} ID in { round(M.Runtime,2)} seconds ==========")
 
 
-# find_impossible_differential(3,11,5, 16)
-find_impossible_differential(4,11,5,16)
 
-# find_impossible_differential(12, 24)
+# 32	64	3	11	5
+find_impossible_differential(3,11,5, 16, 64)
 
-# find_impossible_differential(5,13,5, 32)
+# 32	64	4	11	5
+find_impossible_differential(4,11,5, 16, 64)
 
+# 48	72	4	12	4
+find_impossible_differential(4,12,4, 24, 72)
 
-# find_impossible_differential(16, 48)
+# 48	96	4	12	5
+find_impossible_differential(4,12,5, 48, 96)
 
-# find_impossible_differential(4,19,4, 64)
+# 64	96	3	13	5
+find_impossible_differential(3,13,5, 32, 96)
 
-# find_impossible_differential(12, 16)
-# find_impossible_differential(13, 24)
-# find_impossible_differential(14, 32)
-# find_impossible_differential(17, 48)
-# find_impossible_differential(20, 64)
+# 64	96	4	13	5
+find_impossible_differential(4,13,5, 32, 96)
+
+# 64	128	4	13	5
+find_impossible_differential(3,13,5, 32, 128)
+
+# 64	128	5	13	5
+find_impossible_differential(5,13,5, 32, 128)
+
+# 96	96	4	16	4
+find_impossible_differential(4,16,4, 48, 96)
+
+# 96	144	4	16	5
+find_impossible_differential(4,16,5, 48, 72)
+
+# 128	128	4	19	4
+find_impossible_differential(4,19,4, 64, 128)
+
+# 128	128	4	19	5
+find_impossible_differential(4,19,5, 64, 128)
+
+# 128	192	5	19	5
+find_impossible_differential(5,19,5, 64, 192)
+
+# 128	192	5	19	6
+find_impossible_differential(5,19,6, 64, 192)
+
+# 128	256	5	19	6
+find_impossible_differential(5,19,6, 64, 1256)
+
+# 128	256	6	19	6
+find_impossible_differential(6,19,6, 64, 256)

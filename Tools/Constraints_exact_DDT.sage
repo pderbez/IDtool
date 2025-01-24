@@ -19,7 +19,7 @@ def convert_to_string(I, L):
                 
 def getModel(S, name):
     print(f"=============== {name} ==================")
-    m = S.m
+    m = S.input_size()
 
     f = open("S_"+name+"Diff.esp", 'w')
     f.write(f".i {2*m}\n.o 1\n.p {(2**(2*m))}\n")

@@ -24,7 +24,7 @@ def convert_to_int(v):
 #  Test if the vector space V is included in a strict subspace which can be described only with zeros and *
 def test_eq(V, m):
     # check if some zero appear
-    return any(i for i in range(m) if all(x[i] == 0 for x in V.basis()))
+    return len([i for i in range(m) if all(x[i] == 0 for x in V.basis())])>0
 
 #For each possible input difference din, construct A[Vect(din)] : the smallest vectorspace which contain all the differences S(x+din)+S(x)
 def getVectorSpaceDDT(S, m):
@@ -118,7 +118,7 @@ def wrap_analyse(name):
 
 def analyse(S, name):
     print(f"=============== {name} ==================")
-    m = S.m
+    m = S.input_size()
     A = getVectorSpaceDDT(S, m)
     B = exploitVectorDDT(A, m)
     if len(B) > 1:
@@ -134,7 +134,7 @@ def analyse(S, name):
                 
 def getModel(S, name):
     print(f"=============== {name} ==================")
-    m = S.m
+    m = S.input_size()
     A = getVectorSpaceDDT(S, m)
     B = exploitVectorDDT(A, m)
     f = open("S_"+name+"_Min_Diff.esp", 'w')
@@ -182,7 +182,7 @@ def Sbox_Midori(pi):
 
 # Check all Sboxes
 for name in sboxes:
-    if sboxes[name].m <= 5:
+    if sboxes[name].input_size() <= 5:
         wrap_analyse(name)
 
 # SSb0 = Sbox_Midori(pi1)

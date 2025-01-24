@@ -36,7 +36,7 @@ def printVectorSpaceasString(V, m):
 
 # Construct the set of vector v||w such that there exists for which S(x)+S(x+v) = w
 def getExtendedDDT(S):
-    m = S.m
+    m = S.input_size()
     n= S.n
     DDT = S.difference_distribution_table()
     EDDT = set()
@@ -81,7 +81,7 @@ def exploitExtendedDDT(E, m,n, name):
 def analyse(S, name):
     print(f"=============== {name} ==================")
     A = getExtendedDDT(S)
-    exploitExtendedDDT(A, S.m,S.n, name)
+    exploitExtendedDDT(A, S.input_size(),S.n, name)
 
 
 def MixColumnSkinny():
