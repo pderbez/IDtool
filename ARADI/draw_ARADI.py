@@ -31,7 +31,7 @@ def drawGrid(x,y, file_name, UpperTrail, LowerTrail, NewZeros, index=0) :
                         if M[index%4][j,k] ==1 :
                             f.write(f"\\draw[draw={COLOR_COL_NEW_ZEROS[c]}, ultra thick]({x+k*w},{y+l-0.05*c}) rectangle  ++ ({w},1+ {2*0.05*c}); \n")
                   
-                    c+=1
+                    c =(c+1)%len(COLOR_COL_NEW_ZEROS)
 
                 if NewZeros[1][j]!=0 : 
                     f.write(f"\\draw[draw={COLOR_COL_NEW_ZEROS[c]}, ultra thick]({x+j*w},{y+l-0.05*c}) rectangle  ++ ({w},1+ {2*0.05*c}); \n")
@@ -39,7 +39,7 @@ def drawGrid(x,y, file_name, UpperTrail, LowerTrail, NewZeros, index=0) :
                         if M[index%4][j,k] ==1 :
                             f.write(f"\\draw[draw={COLOR_COL_NEW_ZEROS[c]}, ultra thick]({x+k*w},{y-0.05*c}) rectangle  ++ ({w},1+ {2*0.05*c}); \n")
                    
-                    c+=1
+                    c =(c+1)%len(COLOR_COL_NEW_ZEROS)
                
 def NeededGrid(x,y, file_name, neededTrail) :
     with open(file_name, "a") as f:
@@ -48,11 +48,24 @@ def NeededGrid(x,y, file_name, neededTrail) :
                 f.write(f"\\draw[draw={COLOR_VALUE_NEEDED_F},ultra thick] ({x+j*w},{y+1} )--++({w},-1);\n")
             f.write(f"\\draw ({x+j*w},{y}) rectangle  ++ ({w},1); \n")
 
+
+def FirstTransition(z, file_name) :
+    with open(file_name, "a") as f: 
+        
+        f.write(f"\\node (A) at ({w*16},{z+1.5}) "+"{$\\bigoplus $}  ;\n")
+        f.write(f"\\node[right = 2mm of A]"+ "{$K_{"+str(0)+"}$} ; \n")
+        f.write(f"\\draw[->, thick] (A) -- ({w*16}, {z+1}) ;\n") # node[midway, right = 2mm] "+ "{$S$} ;\n")
+    
+
 def drawTransition(z, file_name, i) :
     with open(file_name, "a") as f: 
-        f.write(f"\\draw[->, thick] ({w*16},{z}) -- ++ (0,{-0.2}) node[below ] (A) "+"{$\\bigoplus $} ;\n")
-        f.write(f"\\node[right = 2mm of A]"+ "{$K_{"+str(i)+"}$} ; \n")
-        f.write(f"\\draw[->, thick] (A) -- ({w*16}, {z-(l-1)}) node[midway, right = 2mm] "+ "{$S$, $\Lambda_{"+str(i%4)+"}$} ;\n")
+        # f.write(f"\\draw[->, thick] ({w*16},{z}) -- ++ (0,{-0.2}) node[below ] (A) "+"{$\\bigoplus $} ;\n")
+        # f.write(f"\\node[right = 2mm of A]"+ "{$K_{"+str(i)+"}$} ; \n")
+        # f.write(f"\\draw[->, thick] (A) -- ({w*16}, {z-(l-1)}) node[midway, right = 2mm] "+ "{$S$, $\Lambda_{"+str(i%4)+"}$} ;\n")
+
+        f.write(f"\\draw[->, thick] ({w*16},{z}) -- ++ (0,{-0.5}) node[midway, right=2mm ] "+ "{$S$,$\Lambda_{"+str(i%4)+"}$} node[below ] (A) "+"{$\\bigoplus $} ;\n")
+        f.write(f"\\node[right = 2mm of A]"+ "{$K_{"+str(i+1)+"}$} ; \n")
+        f.write(f"\\draw[->, thick] (A) -- ({w*16}, {z-(l-1)}) ;\n") # node[midway, right = 2mm] "+ "{$S$} ;\n")
     
 
 
@@ -86,6 +99,8 @@ def draw(model, comp):
         f.write("\\begin{document}\n")
         f.write("\\begin{tikzpicture}[every node/.style={inner sep=0,outer sep=0}]\n")
 
+
+    FirstTransition(l*len(Backward_rounds) , file_name)
 
     for r in range(len(Backward_rounds)) :
         z= l*len(Backward_rounds) - l*r
