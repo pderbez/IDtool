@@ -1,6 +1,7 @@
 import gurobipy as gp
 import ARADI_Validator
 from ARADI import M
+from draw_ARADI import draw
 
 # Auxiliary functions
 
@@ -19,8 +20,7 @@ def L(model, state, new_state, r):
 # Modelisation of the propagation of the needed cells through the linear layer of round r (a cell is needed if any of the cells where it is used is needed or if the cell is active)
 def Lguess(model, state, new_state, zeros, r):
     for i in range(32):
-        Xor(model, [state[j] for j in range(32) if M[r]
-            [j, i] == 1]+[zeros[i]], new_state[i])
+        Xor(model, [state[j] for j in range(32) if M[r][j, i] == 1]+[zeros[i]], new_state[i])
 
 
 # Summary trail
@@ -75,7 +75,7 @@ def printTrail(model, summary, backward, forward, valid, newZeros, needed_F, nee
     rounds_b = len(backward)-len(summary)
     rounds_f = len(forward)-len(summary)
 
-    with open(f"det_{valid}.sol", 'w') as f:
+    with open(f"sol_{valid}.sol", 'w') as f:
         f.write("         FORWARD TRAIL          \t         SUMMARY TRAIL               \t      BACKWARD TRAIL  \t                        NEEDED CELLS\n")
         f.write("         (BACKWARD KR)          \t                                     \t      (FORWARD KR)  \n")
         for i in range(rounds_b):
@@ -117,7 +117,8 @@ def my_callback(model, where):
 
         if s == gp.GRB.INFEASIBLE:
             print(f"Found an impossible differential in {model.cbGet(gp.GRB.Callback.RUNTIME):.2f} seconds. Associated attack has complexity ={model.cbGet(gp.GRB.Callback.MIPSOL_OBJ):.2f}")
-            printTrail(model, model._summary, model._is_zero_forward, model._is_zero_backward, f"{model._valid}_{model._offset}_{model.cbGet(gp.GRB.Callback.MIPSOL_OBJ):.2f}", model._NewZeros, model._value_needed_backward, model._value_needed_forward)
+            # printTrail(model, model._summary, model._is_zero_forward, model._is_zero_backward, f"{model._valid}_{model._offset}_{model.cbGet(gp.GRB.Callback.MIPSOL_OBJ):.2f}", model._NewZeros, model._value_needed_backward, model._value_needed_forward)
+            draw(model, model.cbGet(gp.GRB.Callback.MIPSOL_OBJ))
 
             model._valid += 1
 
@@ -145,7 +146,7 @@ def find_impossible_differential(rounds_b, rD, rounds_f, offset):
     model._is_zero_forward = []
     model._is_zero_backward = []
     model._summary = []
-    model._NewZeros = []
+    model._NewZeros = [[],[]]
 
     model._solCount = 0
     model._valid = 0
@@ -173,9 +174,9 @@ def find_impossible_differential(rounds_b, rD, rounds_f, offset):
         # L is involutive
         L(model, model._is_zero_backward[r+1-rounds_b], model._is_zero_backward[r-rounds_b], (r+offset) % 4)
 
-        model._NewZeros += FindNewZerosLinearLayer(
+        model._NewZeros[0] += FindNewZerosLinearLayer(
             model, model._summary[r-rounds_b], model._summary[r+1-rounds_b], (r+offset) % 4)
-        model._NewZeros += FindNewZerosLinearLayer(
+        model._NewZeros[1] += FindNewZerosLinearLayer(
             model, model._summary[r+1-rounds_b], model._summary[r-rounds_b], (r+offset) % 4)
 
     model.addConstrs(model._value_needed_forward[0][i] == 0 for i in range(32))
@@ -195,43 +196,56 @@ def find_impossible_differential(rounds_b, rD, rounds_f, offset):
 
     cin = Din-DX
     cout = Dout-DY
+    
 
-    KinKout = 4 * (gp.quicksum(gp.quicksum(X) for X in model._value_needed_backward) +
-                   gp.quicksum(gp.quicksum(X) for X in model._value_needed_forward))
-    n = 4*32
-
-    # formula = max(cin+cout - 0.5 , |kin u kout| - 0.5, cin + cout - 0.5 +  n + 1 - |Din| - |Dout|, (cin + cout - 0.5 + n + 1 - |Din|)/2)
-    Term1, Term2, Term3, Term4, complexity, kin, kout = [
-        model.addVar(vtype=gp.GRB.CONTINUOUS) for _ in range(7)]
-    model.addConstr(Term1 == cin+cout - 0.53)
-    model.addConstr(Term2 == KinKout - 0.53)
-    model.addConstr(Term3 == cin+cout - 0.53+n+1 - Din-Dout)
-    model.addConstr(Term4 == (cin+cout-0.53+n+1-Dout)/2)
-
-    model.addConstr(complexity >= Term1)
-    model.addConstr(complexity >= Term2)
-    model.addConstr(complexity >= Term3)
-    model.addConstr(complexity >= Term4)
-
-    model.addConstr(Term3 <= 128)
-    model.addConstr(Term4 <= 128)
-
-    model.addConstr(gp.quicksum(model._NewZeros) >= 1)
-
-    model.setObjective(complexity)
+    kin, kout = [model.addVar(vtype=gp.GRB.CONTINUOUS) for _ in range(2)]
     model.addConstr(kin == gp.quicksum(gp.quicksum(X)
                 for X in model._value_needed_backward))
     model.addConstr(kout == gp.quicksum(gp.quicksum(X)
                 for X in model._value_needed_forward))
+    KinKout = 4 * (kin) + 4 * kout
+                  
+    n = 4*32
+
+
+    e = model.addVar(vtype='b')
+    Dmax = model.addVar(vtype='b')
+    g = model.addVar(vtype=gp.GRB.CONTINUOUS, lb=1, ub= 4)
+    
+
+    model.addConstr(Dmax <= Din + n*e)
+    model.addConstr(Dmax <= Dout + n *(1-e))
+   
+  
+    # formula = max(cin+cout - 0.5 , |kin u kout| - 0.5, cin + cout - 0.5 +  n + 1 - |Din| - |Dout|, (cin + cout - 0.5 + n + 1 - |Din|)/2)
+    N, Term2, D1, D2, complexity = [model.addVar(vtype=gp.GRB.CONTINUOUS) for _ in range(5)]
+    model.addConstr(N == cin+cout - 0.53+g)
+    model.addConstr(Term2 == KinKout - 0.53 +g)
+    model.addConstr(D1 == N+n+1 - Din-Dout)
+    model.addConstr(D2 == (N+n+1-Dmax)/2)
+
+    model.addConstr(complexity >= N)
+    model.addConstr(complexity >= Term2)
+    model.addConstr(complexity >= D1)
+    model.addConstr(complexity >= D2)
+
+    model.addConstr(D1 <=n)
+    model.addConstr(D2 <=n)
+
+    model.addConstr(gp.quicksum(model._NewZeros[0]+model._NewZeros[1]) >= 1)
+
+    model.setObjective(complexity)
+
     model.optimize(my_callback)
 
+
     try:
-        print(f"cin+cout - 0.5  = {Term1.X}, |kin u kout| - 0.5 = {Term2.X}, cin + cout - 0.5 +  n + 1 - |Din| - |Dout| ={Term3.X}, (cin + cout - 0.5 + n + 1 - |Din|)/2) = {Term4.X}" )
+        print(f"g = {g.X} ,cin+cout - 0.5   +g = {N.X}, |kin u kout| - 0.5 +g = {Term2.X}, cin + cout - 0.5 +  n + 1 - |Din| - |Dout| +g ={D1.X}, (cin + cout - 0.5 + n + 1 - |Dmax| +g)/2) = {D2.X}" )
         print(f"============= {rD} rounds == ARADI ==  Explored {model._solCount} solutions and found {model._valid} ID in {model.Runtime:.2f} seconds ==========")
     except:
         pass
 
 
-for offset in range(0, 4):
+for offset in range(0, 1):
     print(f"============= offset = {offset} ========")
-    find_impossible_differential(3, 7, 2, offset)
+    find_impossible_differential(2, 7, 3, offset)
