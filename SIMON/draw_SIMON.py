@@ -23,13 +23,15 @@ def drawGrid(x,y, file_name, UpperTrail, LowerTrail, NewZeros) :
                 if NewZeros[j]!=0 :
                     f.write(f"\\draw[draw={COLOR_COL_NEW_ZEROS}, ultra thick]({x+j*w},{y-0.1}) rectangle  ++ ({w},1.2); \n")
 
-def NeededGrid(x,y, file_name, neededTrail) :
+def NeededGrid(x,y, file_name, neededTrail, text="") :
     w = min(len(neededTrail)//2, 32) *1.0/ len(neededTrail)
     with open(file_name, "a") as f:
         for j in range(len(neededTrail)):
             if neededTrail[j] >0.5:
                 f.write(f"\\draw[draw={COLOR_VALUE_NEEDED_F},ultra thick] ({x+j*w},{y+1} )--++({w},-1);\n")
             f.write(f"\\draw ({x+j*w},{y}) rectangle  ++ ({w},1); \n")
+        
+        f.write(f"\\node at ({x},{y+1.2}) "+"{$" + text +"$};\n")
 
 def drawFeistel(y, w,file_name ) :
     with open(file_name, "a") as f:
@@ -76,8 +78,8 @@ def draw(model, algo,comp):
 
     NewZeros = [round(model.cbGetSolution(x)) for x in model._NewZeros]
 
-    Filter_B = [[round(model.cbGetSolution(x[j]))  for j in range(n) ] for x in model._XORCancellation_B]
-    Filter_F = [[round(model.cbGetSolution(x[j])) for j in range(n) ] for x in model._XORCancellation_F]
+    # Filter_B = [[round(model.cbGetSolution(x[j]))  for j in range(n) ] for x in model._XORCancellation_B]
+    # Filter_F = [[round(model.cbGetSolution(x[j])) for j in range(n) ] for x in model._XORCancellation_F]
    
 
     # WXY = [[[round(model.cbGetSolution(x)) for x in a] for a in L ] for L in model._store] 
@@ -105,14 +107,13 @@ def draw(model, algo,comp):
         NeededGrid(0,z,file_name, Backward_NeededKR[r][0])
         NeededGrid(w+10,z,file_name, Backward_NeededKR[r][1])
         NeededGrid(w/2+5,z-1.5, file_name, Backward_NeededKR[r][2])
-
-
-        
+ 
+            
         drawFeistel(z, w , file_name)
         
         if r>0 :
-            NeededGrid(-16, z, file_name,KR[r] )
-            drawFilter(0,z, file_name, Filter_B[r-1])
+            NeededGrid(-8, z-2, file_name,KR[r] ,text=f"K^e_{r}" )
+            # drawFilter(0,z, file_name, Filter_B[r-1])
            
 
     
@@ -125,7 +126,7 @@ def draw(model, algo,comp):
             drawFeistel(z, w , file_name)
 
 
-    drawFilter(0,0, file_name, Filter_B[-1])
+    # drawFilter(0,0, file_name, Filter_B[-1])
     
     for r in range(len(Forward_rounds)) :
         z = -4*(len(UpperTrail)-1)-4*r
@@ -136,15 +137,14 @@ def draw(model, algo,comp):
             drawGrid(w/2 + 5 ,z-1.5,file_name, [0]*n, Forward_rounds[r][2],  None)      
 
             if r+2<len(Forward_rounds) :
-                
-                NeededGrid(-16, z, file_name,BKR[r] )
+                NeededGrid(-8, z-2, file_name,BKR[r] ,text="K^e_{"+str(r+ len(UpperTrail)+len(Backward_rounds)-1)+"}" )
             
             NeededGrid(0,z,file_name, Forward_NeededKR[r][0])
             NeededGrid(w+10,z,file_name, Forward_NeededKR[r][1])
             NeededGrid(w/2+5,z-1.5, file_name, Forward_NeededKR[r][2])
 
-        if r+2 < len(Forward_rounds):
-            drawFilter(w+10,z, file_name, Filter_F[r])
+        # if r+2 < len(Forward_rounds):
+        #     drawFilter(w+10,z, file_name, Filter_F[r])
             
         
 

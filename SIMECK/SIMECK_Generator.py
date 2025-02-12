@@ -1,7 +1,7 @@
 import gurobipy as gp
 import SIMECK_Validator
 from draw_SIMECK import draw
-
+from SIMECK_contradiction import SIMECK
 
 
 def getSummaryBit(M, a, b):
@@ -115,10 +115,8 @@ def my_callback(model, where):
             
             draw(model, "SIMECK")
 
-            model._valid += 1
 
-            # model.cbLazy(gp.quicksum(model._is_zero_forward[0][0]) + gp.quicksum(model._is_zero_forward[0][1]) +
-            #         gp.quicksum(model._is_zero_backward[-1][0]) +  gp.quicksum(model._is_zero_backward[-1][1]) >= nb_one+1)
+
         else:
             if model._solCount %50 ==0 :
                 print(f"solution {model._solCount} is possible .. we exclude it")
@@ -149,7 +147,7 @@ def my_callback(model, where):
 
 def find_impossible_differential(rD, n):
     M = gp.Model()
-    M.setParam("LogToConsole",0)
+    M.setParam("LogToConsole",1)
     M.setParam("LazyConstraints", 1)
 
     M._is_zero_forward = []
@@ -213,9 +211,9 @@ def find_impossible_differential(rD, n):
     # M.setObjective(-gp.quicksum(M._NewZeros))
 
     # Mode 2 : Maximize number of active bits  (with heuristics Number of zeros >=3)
-    M.addConstr(gp.quicksum(M._NewZeros) >= 3)
-    M.setObjective(-(gp.quicksum(M._is_zero_forward[0][0]) + gp.quicksum(M._is_zero_forward[0][1]) +
-                   gp.quicksum(M._is_zero_backward[-1][0]) +  gp.quicksum(M._is_zero_backward[-1][1])))
+    # M.addConstr(gp.quicksum(M._NewZeros) >= 3)
+    # M.setObjective(-(gp.quicksum(M._is_zero_forward[0][0]) + gp.quicksum(M._is_zero_forward[0][1]) +
+    #                gp.quicksum(M._is_zero_backward[-1][0]) +  gp.quicksum(M._is_zero_backward[-1][1])))
 
 
     M.addConstr(M._summary[0][0][0] + M._summary[0][1][0]>=1)
@@ -225,12 +223,18 @@ def find_impossible_differential(rD, n):
     print(f"============= Explored {
           M._solCount} solutions and found {M._valid} ID in { round(M.Runtime,2)} seconds ==========")
 
-find_impossible_differential(11, 16)
+# find_impossible_differential(11, 16)
 
-find_impossible_differential(15, 24)
+# find_impossible_differential(15, 24)
 
-find_impossible_differential(17, 32)
+# find_impossible_differential(17, 32)
 
+
+# find_impossible_differential(24,48)
+
+# find_impossible_differential(31,64)
+
+find_impossible_differential(56,128)
 
 
 # find_impossible_differential(12, 16)
@@ -238,6 +242,8 @@ find_impossible_differential(17, 32)
 # find_impossible_differential(16, 24)
 
 # find_impossible_differential(18, 32)
+
+
 
 
 
