@@ -115,8 +115,6 @@ def my_callback(model, where):
             
             draw(model, "SIMECK")
 
-
-
         else:
             if model._solCount %50 ==0 :
                 print(f"solution {model._solCount} is possible .. we exclude it")
@@ -125,20 +123,12 @@ def my_callback(model, where):
             for i in range(len(target_i[0])):
                 if round(target_i[0][i]) == 1:
                     c += 1-model._summary[0][0][i]
-                # else:
-                #     c += model._summary[0][0][i]
                 if round(target_o[0][i]) == 1:
                     c += 1-model._summary[-1][0][i]
-                # else:
-                #     c += model._summary[-1][0][i]
                 if round(target_i[1][i]) == 1:
                     c += 1-model._summary[0][1][i]
-                # else:
-                #     c += model._summary[0][1][i]
                 if round(target_o[1][i]) == 1:
                     c += 1-model._summary[-1][1][i]
-                # else:
-                #     c += model._summary[-1][1][i]
 
             model.cbLazy(c >= 1)
 
@@ -230,18 +220,7 @@ def find_impossible_differential(rD, n):
 # find_impossible_differential(17, 32)
 
 
-# find_impossible_differential(24,48)
 
-# find_impossible_differential(31,64)
-
-find_impossible_differential(56,128)
-
-
-# find_impossible_differential(12, 16)
-
-# find_impossible_differential(16, 24)
-
-# find_impossible_differential(18, 32)
 
 
 
