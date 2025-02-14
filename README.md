@@ -18,9 +18,6 @@ It provides implementation of Gurobi Models to search for impossible differentia
 
 
 
-* Note pour Patrick : j'ai commité la version probabiliste pour ARADI. Il faudra probablement l'enlever pour la soumission
-
-
 Most of them are written in Python. Some are in C++. All of them require a valid installation and licence of Gurobi. Most of them also provide tools to generate a graphical representation (in latex) of the distinguisher/attacks.
 
 
