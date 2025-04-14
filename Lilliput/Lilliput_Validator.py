@@ -89,3 +89,20 @@ def is_differential_possible(target_i, target_o, rD) :
     #     print(r,s[:len(s)//2], s[len(s)//2:])
 
     return M.Status
+
+if __name__ == "__main__" :
+    target_i = [(0,0)]*64
+    target_o = [(0,0)]*64
+
+    # target_i[51]=(0,1)
+    # target_o[5] = (0,1)
+    # target_o[7] =(0,1)
+
+    target_i[48]=(0,1)
+    target_o[4] = (0,1)
+    target_o[6] =(0,1)
+
+    print(is_differential_possible(target_i,target_o,9)==GRB.INFEASIBLE)
+
+
+

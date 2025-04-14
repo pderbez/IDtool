@@ -189,23 +189,25 @@ def my_callback(model, where):
             target_i, target_o, rD-1)
 
         if s == GRB.INFEASIBLE:
+            
             model._valid +=1 
-            print(f"{model._valid} Found an impossible differential provoked by {round(sum(model.cbGetSolution(model._NewZeros)))} zeros. ",
-                  model.cbGet(GRB.Callback.RUNTIME))
+            
+            s= f"{model._valid} Found an impossible differential provoked by {round(sum(model.cbGetSolution(model._NewZeros)))} zeros. " + str(model.cbGet(GRB.Callback.RUNTIME)  )+" "
             
             try : 
-                input = "".join([hex(int("".join(getStr(x) for x in target_i[4*i:4*i+4]),base=2))[2:] for i in range(16)])[::-1]
-                output = "".join([hex(int("".join(getStr(x) for x in target_o[4*i:4*i+4]),base=2))[2:] for i in range(16)])[::-1]
+                input = "".join([hex(int("".join(getStr(x) for x in target_i[4*i:4*i+4][::-1]),base=2))[2:] for i in range(16)])[::-1]
+                output = "".join([hex(int("".join(getStr(x) for x in target_o[4*i:4*i+4][::-1]),base=2))[2:] for i in range(16)])[::-1]
                 
-                print("ID:", input[:8], input[8:],
+                print(s,"ID:", input[:8], input[8:],
                     " -/->  " + output[:8], output[8:])
             except :
-                print("ID:", "".join([getStr(x) for x in target_i])[::-1],
+                print(s,"ID:", "".join([getStr(x) for x in target_i])[::-1],
                     " -/->  ",  "".join([getStr(x) for x in target_o])[::-1])
             
 
         else:
-            print(f"solution {model._solCount} is possible .. we exclude it")
+            if model._solCount%30 ==0 :
+                print(f"solution {model._solCount} is possible .. we exclude it")
 
             c = 0
             for i in range(len(target_i)):
@@ -248,24 +250,34 @@ def find_impossible_differential(rD):
         M._NewZeros+= new_zeros(M, M._summary[r], M._summary[r+1])
 
     # M.addConstr(sum(isConstradiction(M,x) for x in M._summary[0]+ M._summary[-1])<=0)
-    M.addConstr(4*sum(isConstradiction(M,x)  for L in M._summary for x in L) + sum(M._NewZeros) >=4)    
+    M.addConstr(sum(isConstradiction(M,x)  for L in M._summary for x in L) + sum(M._NewZeros) >=1)    
 
-    # M.setObjective(sum(x[0]+x[1] for x in M._summary[0])+sum(x[0]+x[1] for x in M._summary[-1]) , GRB.MAXIMIZE)
-
+    M.setObjective(sum(x[1] for x in M._summary[0]+ M._summary[-1]) , GRB.MAXIMIZE)
+# 
     M.addConstr(sum(x[0] for x in M._summary[0]+ M._summary[-1])<=0)
 
-    M.addConstr(sum(isActiveCell(M,M._summary[0][4*i:4*(i+1)]) for i in range(16))<=1)
-    M.addConstr(sum(isActiveCell(M,M._summary[-1][4*i:4*(i+1)]) for i in range(16))<=1)
-    M.setParam("PoolSearchMode",2)
-    M.setParam("PoolSolutions",250) 
+    # M.addConstr(sum(isActiveCell(M,M._summary[0][4*i:4*(i+1)]) for i in range(16))<=1)
+    # M.addConstr(sum(isActiveCell(M,M._summary[-1][4*i:4*(i+1)]) for i in range(16))<=1)
+    # M.setParam("PoolSearchMode",2)
+    # M.setParam("PoolSolutions",250) 
     M.setParam("LogToConsole",1)
     # M.Params.SolFiles = 'Lilliput'
 
-    # M.addConstr(sum(x[0]+x[1] for x in M._summary[0])==1)
-    # M.addConstr(M._summary[0][48][0]+M._summary[0][51][1]==1)
+    M._summary[0][48][1].start = 1
+    M._summary[-1][4][1].start = 1
+    M._summary[-1][6][1].start = 1
+    for i in range(64) :
+        if i!=48 :
+            M._summary[0][i][1].start = 0
+        if i!=4 and i !=6 :
+            M._summary[-1][i][1].start = 0
 
-    # M.addConstr(sum(x[0]+x[1] for x in M._summary[-1])==1)
+    # M.addConstr(sum(x[0]+x[1] for x in M._summary[0])==1)
+    # M.addConstr(M._summary[0][48][0]+M._summary[0][48][1]==1)
+
+    # M.addConstr(sum(x[0]+x[1] for x in M._summary[-1])==2)
     # M.addConstr(M._summary[-1][4][0]+M._summary[-1][4][1]==1)
+    # M.addConstr(M._summary[-1][6][0]+M._summary[-1][6][1]==1)
 
     M.optimize(my_callback)
     for r in range(rD+1):
