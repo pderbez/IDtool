@@ -176,3 +176,27 @@ def draw(is_zero_f, is_zero_b, newZeros, summary, TruncB_value, TruncF_value, ST
 
     with open(file_name, "a") as f:
         f.write('\\end{tikzpicture}\n\\end{document}\n')
+
+
+def distinguisher_draw(is_zero_f, is_zero_b, newZeros, summary, file_name):
+    file_name = file_name
+    with open(file_name, "w") as f:
+        f.write(
+            "\\documentclass{standalone}\n\\usepackage[dvipsnames]{xcolor}\n\\usepackage{tikz}\n\\usetikzlibrary{arrows}\n\\usetikzlibrary{calc}\n\\usetikzlibrary{positioning}\n")
+        f.write("\\begin{document}\n")
+        f.write("\\begin{tikzpicture}\n")
+
+    rD = len(is_zero_f)-1
+    rB=0
+   
+    drawTrail(is_zero_f,- 11*(rB//N+1), file_name,
+              1, COLOR_FORWARD_DISTINGUISHER)
+    drawTrail(is_zero_b, -11*(rB//N+1), file_name,-
+              1, COLOR_BACKWARD_DISTINGUISHER)
+    
+
+    drawZeros(newZeros, - 11*(rB//N+1), file_name)
+
+
+    with open(file_name, "a") as f:
+        f.write('\\end{tikzpicture}\n\\end{document}\n')
