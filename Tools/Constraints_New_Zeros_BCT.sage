@@ -34,11 +34,11 @@ def printVectorSpaceasString(V, m):
 
 
 
-# Construct the set of vector v||w such that there exists for which S(x)+S(x+v) = w
-def getExtendedDDT(S):
+# Construct the set of vector v||w such that there exists x for which S(x)+S(x+v) = w
+def getExtendedBCT(S):
     m = S.input_size()
     n= S.output_size()
-    DDT = S.difference_distribution_table()
+    DDT = S.boomerang_connectivity_table()
     EDDT = set()
     for diff_input in range(DDT.nrows()):
         diffs_input = list(convert_to_vector(diff_input, m))
@@ -49,7 +49,7 @@ def getExtendedDDT(S):
     return EDDT
 
 # For all combinations of patterns of input and outputs , we verify if a stricter pattern could be applied (ie more zeros)
-def exploitExtendedDDT(E, m,n, name):
+def exploitExtendedBCT(E, m,n, name):
     # strE = ["".join('1' if t == 1 else '0' for t in X) for X in E]
     # print(strE)
     f = open(name+".esp", 'w')
@@ -80,13 +80,13 @@ def exploitExtendedDDT(E, m,n, name):
 
 def analyse(S, name):
     print(f"=============== {name} ==================")
-    A = getExtendedDDT(S)
-    exploitExtendedDDT(A, S.input_size(),S.output_size(), name)
+    A = getExtendedBCT(S)
+    exploitExtendedBCT(A, S.input_size(),S.output_size(), name)
 
 
 def MixColumnSkinny():
     L = []
-    for x in range(2 ** 4):
+    for x in range(2 * 4):
         v = convert_to_vector(x, 4)
         y = [v[0]+v[2]+v[3], v[0], v[1]+v[2], v[0]+v[2]]
         L.append(convert_to_int(y))
@@ -103,14 +103,6 @@ def MixColumnMidori() :
     return SBox(L)
 
 
-def MixColumnSkinnyLAT() :
-    L = []
-    for x in range(2 ** 4):
-        v = convert_to_vector(x, 4)
-        y = [v[3],v[0]+v[1]+v[2], v[1],v[1]+v[2]+v[3]]
-        L.append(convert_to_int(y))
-    return SBox(L)
-
 
 
 def FeistelFunctionSimon() :
@@ -121,7 +113,10 @@ def FeistelFunctionSimon() :
     return SBox(L)
 
 
-# analyse(MixColumnSkinny(), 'MC_Skinny')
+#analyse(MixColumnSkinny(), 'MC_Skinny')
+#analyse(MixColumnMidori(),'MC_Midori')
 
-analyse(MixColumnSkinnyLAT(),"MC_Skinny_LAT")
-# analyse(sboxes["PRESENT"],"PRESENT")
+for name in sboxes :
+    if sboxes[name].input_size() <= 4 and sboxes[name].is_permutation():
+        analyse(sboxes[name],name)
+analyse(sboxes["PRESENT"],"PRESENT")
