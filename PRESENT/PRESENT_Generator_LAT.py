@@ -1,5 +1,5 @@
 import gurobipy as gp
-import PRESENT_Validator
+import PRESENT_Validator_ZeroCorrelation
 from draw_PRESENT import draw
 
 gp.setParam("LogToConsole", 1)
@@ -58,7 +58,7 @@ def SboxLayerFirst(M, state, new_state):
         new_cell = new_state[4*i:4*i+4]
       
         L = cell+new_cell
-        with open("S_PRESENT_Semi_Min_Diff_short.esp", 'r') as f:
+        with open("S_PRESENT_Semi_Min_Lat_short.esp", 'r') as f:
             for line in f:
                 if line[0] != '.':
                     c = 0
@@ -79,7 +79,7 @@ def SboxLayerLast(M, state, new_state):
         new_cell = new_state[4*i:4*i+4]
         # M.update()
         L = cell+new_cell
-        with open("S_PRESENT_INV_Semi_Min_Diff_short.esp", 'r') as f:
+        with open("S_PRESENTINV_Semi_Min_Lat_short.esp", 'r') as f:
             for line in f:
                 if line[0] != '.':
                     c = 0
@@ -112,7 +112,7 @@ def SboxLayer(M, state, new_state):
 def FindNewZerosSboxes(M, Known_zeros_before, Known_zeros_after):
     NewZero = M.addVar(vtype='b', name="SboxNewZero")
     L = Known_zeros_before + Known_zeros_after+[NewZero]
-    with open("S_Present_short.esp", 'r') as f:
+    with open("PRESENTDeductionLAT_short.esp", 'r') as f:
         for line in f:
             if line[0] != '.':
                 c = 0
@@ -149,13 +149,13 @@ def my_callback(model, where):
 
 
         # print("...", r, target_i, target_o)
-        s = PRESENT_Validator.is_differential_possible(target_i, target_o, rD)
+        s = PRESENT_Validator_ZeroCorrelation.is_correlation_biased(target_i, target_o, rD)
 
         if  s == gp.GRB.INFEASIBLE:
-            print(f"Found an impossible differential provoked by {round(sum(model.cbGetSolution(model._NewZeros)))} zeros with {(sum(target_i) + sum(target_o))} active bits")
+            print(f"Found an ZC provoked by {round(sum(model.cbGetSolution(model._NewZeros)))} zeros with {(sum(target_i) + sum(target_o))} active bits")
             print("ID:", target_i, target_o)
            
-            draw( f"sol/Present_{model._valid}_{sum(target_i) + sum(target_o)}.tex", model)
+            draw( f"sol/Present_ZC_{rD}_{model._valid}_{sum(target_i) + sum(target_o)}.tex", model)
 
             model._valid += 1
 
@@ -182,7 +182,7 @@ def my_callback(model, where):
 
 
 
-def find_impossible_differential(rD):
+def find_zero_correlation(rD):
     M = gp.Model()
     M.setParam("LazyConstraints", 1)
 
@@ -232,11 +232,11 @@ def find_impossible_differential(rD):
 
 
     M.addConstr(gp.quicksum(M._NewZeros)>=1)
-    M.addConstr(gp.quicksum(M._summary[0][0][:48])==48)
-    # M.addConstr(gp.quicksum(M._summary[0][0][20:])==0)
+    M.addConstr(gp.quicksum(M._summary[0][0])==52)
+    M.addConstr(gp.quicksum(M._summary[0][0][:36])==36)
     output = M._summary[-1][-1] # [M._summary[-1][-1][Pinv[i]] for i in range(64)]
     M.addConstr(gp.quicksum(output[4:])==0)
-    M.addConstr(gp.quicksum(output)<=4)
+    # M.addConstr(gp.quicksum(output)<=4)
 
     M.setObjective(-(gp.quicksum(M._summary[0][0])  ))
 
@@ -247,4 +247,4 @@ def find_impossible_differential(rD):
           M._solCount} solutions and found {M._valid} ID in { round(M.Runtime,2)} seconds ==========")
    
 
-find_impossible_differential(5)
+find_zero_correlation(5)

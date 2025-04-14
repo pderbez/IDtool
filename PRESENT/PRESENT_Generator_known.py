@@ -232,13 +232,8 @@ def find_impossible_differential(rD):
 
 
     M.addConstr(gp.quicksum(M._NewZeros)>=1)
-    M.addConstr(gp.quicksum(M._summary[0][0][:48])==48)
-    # M.addConstr(gp.quicksum(M._summary[0][0][20:])==0)
-    output = M._summary[-1][-1] # [M._summary[-1][-1][Pinv[i]] for i in range(64)]
-    M.addConstr(gp.quicksum(output[4:])==0)
-    M.addConstr(gp.quicksum(output)<=4)
 
-    M.setObjective(-(gp.quicksum(M._summary[0][0])  ))
+    # M.setObjective(-(gp.quicksum(M._is_zero_forward[0][1])+gp.quicksum(M._is_zero_backward[-1][0])  ))
 
  
     M.optimize(my_callback)
@@ -247,4 +242,4 @@ def find_impossible_differential(rD):
           M._solCount} solutions and found {M._valid} ID in { round(M.Runtime,2)} seconds ==========")
    
 
-find_impossible_differential(5)
+find_impossible_differential(6)
